@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config()
 const port = process.env.PORT || 5000;
@@ -41,7 +42,36 @@ run().catch(console.dir);
 
 const categoryCollection = client.db("petAdoptions").collection("categories")
 const petCollection = client.db("petAdoptions").collection("pets")
+const userCollection = client.db("petAdoptions").collection("userInfo")
 const userAdoptionCollection = client.db("petAdoptions").collection("userAdoption")
+
+
+const verifyToken = (req, res, next) => {
+  // console.log('inside verify token',req.headers.authorization);
+  if (!req.headers.authorization) {
+    return res.status(401).send({ message: 'unauthorized access' })
+  }
+  const token = req.headers.authorization.split(' ')[1];
+  if (!token) {
+    return res.status(401).send({ message: 'forbidden access' })
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: 'unauthorized access' })
+    }
+    req.decoded = decoded
+    next()
+  })
+}
+
+
+//jwt
+app.post('/api/v1/jwt', async (req, res) => {
+  const user = req.body;
+  const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1h" })
+  // console.log(token);
+  res.send({ token })
+})
 
 //GET Method: categories 
 app.get('/api/v1/pets-category', async (req, res) => {
@@ -83,6 +113,17 @@ app.get('/api/v1/pets-categories/:category', async (req, res) => {
   const pets = req.params.category;
   const query = { category: pets };
   const result = await petCollection.find(query).toArray();
+  res.send(result)
+})
+//Post method: user Information
+app.post('/api/v1/users-info', async(req, res)=>{
+  const users = req.body;
+  const query = {email: users.email}
+  const existingUser = await userCollection.findOne(query)
+  if(existingUser){
+    return res.send({message: 'users already exists', insertedId:null})
+  }
+  const result = await userCollection.insertOne(users)
   res.send(result)
 })
 
@@ -127,7 +168,7 @@ app.patch('/api/v1/user/pet-create/:id', async (req, res) => {
       image: item.image,
     }
   }
-  const result = await petCollection.updateOne(filter,updateDoc)
+  const result = await petCollection.updateOne(filter, updateDoc)
   res.send(result)
 
 })
