@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config()
 const port = process.env.PORT || 5000;
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
 //middleware
 app.use(cors())
@@ -44,6 +45,7 @@ const categoryCollection = client.db("petAdoptions").collection("categories")
 const petCollection = client.db("petAdoptions").collection("pets")
 const userCollection = client.db("petAdoptions").collection("userInfo")
 const userAdoptionCollection = client.db("petAdoptions").collection("userAdoption")
+const donationCollection = client.db("petAdoptions").collection("donation")
 
 
 const verifyToken = (req, res, next) => {
@@ -116,12 +118,12 @@ app.get('/api/v1/pets-categories/:category', async (req, res) => {
   res.send(result)
 })
 //Post method: user Information
-app.post('/api/v1/users-info', async(req, res)=>{
+app.post('/api/v1/users-info', async (req, res) => {
   const users = req.body;
-  const query = {email: users.email}
+  const query = { email: users.email }
   const existingUser = await userCollection.findOne(query)
-  if(existingUser){
-    return res.send({message: 'users already exists', insertedId:null})
+  if (existingUser) {
+    return res.send({ message: 'users already exists', insertedId: null })
   }
   const result = await userCollection.insertOne(users)
   res.send(result)
@@ -172,6 +174,80 @@ app.patch('/api/v1/user/pet-create/:id', async (req, res) => {
   res.send(result)
 
 })
+
+
+
+
+
+
+//Post Method: create donation campaign
+
+app.post('/api/v1/user/create-donation-campaign', async (req, res) => {
+  const pet = req.body;
+  const result = await donationCollection.insertOne(pet)
+  console.log(result);
+  res.send(result)
+})
+
+//Get Method: donation section
+// app.get('/api/v1/user/donation-section/:id', async(req, res)=>{
+//   const id = req.params.id;
+//   const query= {_id: new ObjectId(id)}
+//   const result = await donationCollection.find(query).toArray();
+//   res.send(result)
+// })
+
+app.get('/api/v1/user/donation-campaign', async (req, res) => {
+  const queryEmail = req.query.email
+  let query = {};
+  if (req.query?.email) {
+    query.email = queryEmail
+  }
+  const result = await donationCollection.find(query).toArray();
+  res.send(result)
+})
+
+app.get('/api/v1/user/donation-campaign-details/:id', async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) }
+  const result = await donationCollection.findOne(query)
+  res.send(result)
+})
+
+app.patch('/api/v1/user/donation-campaign-update/:id', async (req, res) => {
+  const item = req.body;
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) }
+  const updateDoc = {
+    $set: {
+      name: item.name,
+      shortDescription: item.shortDescription,
+      longDescription: item.longDescription,
+      image: item.image,
+      maximumAmount: item.maximumAmount,
+      highestAmount: item.highestAmount,
+    }
+  }
+  const result = await donationCollection.updateOne(filter, updateDoc)
+  res.send(result)
+})
+
+//payment api
+// app.post("/api/v1/create-payment-intent", async (req, res) => {
+//   const { donation } = req.body;
+//   const amount = parseInt(donation * 100)
+//   console.log(amount, "amount inside the intent");
+//   const paymentIntent = await stripe.paymentIntents.create({
+//     amount: amount,
+//     currency: "usd",
+//     payment_method_types: [
+//       "card"
+//     ],
+//   })
+//   res.send({
+//     clientSecret: paymentIntent.client_secret
+//   })
+// })
 
 app.listen(port, () => {
   console.log(`pet adoption server port: ${port}`);
