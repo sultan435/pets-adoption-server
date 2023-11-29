@@ -30,10 +30,10 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -46,10 +46,10 @@ const petCollection = client.db("petAdoptions").collection("pets")
 const userCollection = client.db("petAdoptions").collection("userInfo")
 const userAdoptionCollection = client.db("petAdoptions").collection("userAdoption")
 const donationCollection = client.db("petAdoptions").collection("donation")
+const paymentCollection = client.db("petAdoptions").collection("payments")
 
 
 const verifyToken = (req, res, next) => {
-  // console.log('inside verify token',req.headers.authorization);
   if (!req.headers.authorization) {
     return res.status(401).send({ message: 'unauthorized access' })
   }
@@ -66,6 +66,17 @@ const verifyToken = (req, res, next) => {
   })
 }
 
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded.email;
+  const query = { email: email }
+  const user = await userCollection.findOne(query)
+  const isAdmin = user?.role === "admin"
+  if (!isAdmin) {
+    return res.status(403).send({ message: "forbidden access" })
+  }
+  next()
+}
+
 
 //jwt
 app.post('/api/v1/jwt', async (req, res) => {
@@ -75,13 +86,62 @@ app.post('/api/v1/jwt', async (req, res) => {
   res.send({ token })
 })
 
+
+
+//Post method: user Information
+app.post('/api/v1/users-info', async (req, res) => {
+  const users = req.body;
+  const query = { email: users.email }
+  const existingUser = await userCollection.findOne(query)
+  if (existingUser) {
+    return res.send({ message: 'users already exists', insertedId: null })
+  }
+  const result = await userCollection.insertOne(users)
+  res.send(result)
+})
+
+//Get Method: All users Information
+app.get('/api/v1/users-info', verifyToken, verifyAdmin, async (req, res) => {
+  const result = await userCollection.find().toArray();
+  res.send(result)
+})
+
+app.patch('/api/v1/users/admin/:id', async (req, res) => {
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) }
+  const updateDoc = {
+    $set: {
+      role: "admin"
+    }
+  }
+  const result = await userCollection.updateOne(filter, updateDoc)
+  res.send(result)
+})
+
+app.get('/api/v1/user/admin/:email', verifyToken, async (req, res) => {
+  const email = req.params.email;
+  if (email !== req.decoded.email) {
+    return res.status(403).send({ message: "forbidden access" })
+  }
+  const query = { email: email }
+  const user = await userCollection.findOne(query);
+  let admin = false;
+  if (user) {
+    admin = user?.role === "admin"
+  }
+  res.send({ admin })
+})
+
+
+
+
 //GET Method: categories 
 app.get('/api/v1/pets-category', async (req, res) => {
   const result = await categoryCollection.find().toArray();
   res.send(result)
 })
 
-//Get Method: pet all
+// Get Method: pet all
 app.get('/api/v1/user/pets', async (req, res) => {
   const queryEmail = req.query.email
   let query = {};
@@ -91,6 +151,29 @@ app.get('/api/v1/user/pets', async (req, res) => {
   const result = await petCollection.find(query).toArray();
   res.send(result)
 })
+
+//http://localhost:5000/api/v1/user/pets?category=Rabbit
+//http://localhost:5000/api/v1/user/pets?sortField=dateAndTime&sortOrder=desc
+
+// app.get('/api/v1/user/pets', async (req, res) => {
+//   let query = {};
+//   let sortObj= {}
+//   const queryCategory = req.query.category
+//   const sortField = req.query.sortField
+//   const sortOrder = req.query.sortOrder
+//   if (queryCategory) {
+//     query.category = queryCategory
+//   }
+
+//   if(sortField && sortOrder){
+//     sortObj[sortField] = sortOrder
+//   }
+//   // const cursor =  petCollection.find(query).sort({dateAndTime:"ase"});
+//   const cursor =  petCollection.find(query).sort(sortObj);
+//   const result = await cursor.toArray()
+//   res.send(result)
+// })
+
 
 
 //Delete Method: my pets
@@ -117,17 +200,7 @@ app.get('/api/v1/pets-categories/:category', async (req, res) => {
   const result = await petCollection.find(query).toArray();
   res.send(result)
 })
-//Post method: user Information
-app.post('/api/v1/users-info', async (req, res) => {
-  const users = req.body;
-  const query = { email: users.email }
-  const existingUser = await userCollection.findOne(query)
-  if (existingUser) {
-    return res.send({ message: 'users already exists', insertedId: null })
-  }
-  const result = await userCollection.insertOne(users)
-  res.send(result)
-})
+
 
 //Post Method: user adoption
 app.post('/api/v1/user/pet-adoption', async (req, res) => {
@@ -155,7 +228,7 @@ app.post('/api/v1/user/pet-create', async (req, res) => {
   res.send(result)
 })
 //patch Method: update pet
-app.patch('/api/v1/user/pet-create/:id', async (req, res) => {
+app.patch('/api/v1/user/pet-update/:id', async (req, res) => {
   const item = req.body;
   const id = req.params.id;
   const filter = { _id: new ObjectId(id) }
@@ -201,7 +274,7 @@ app.get('/api/v1/user/donation-campaign', async (req, res) => {
   const queryEmail = req.query.email
   let query = {};
   if (req.query?.email) {
-    query.email = queryEmail
+    query.ownerEmail = queryEmail
   }
   const result = await donationCollection.find(query).toArray();
   res.send(result)
@@ -211,6 +284,13 @@ app.get('/api/v1/user/donation-campaign-details/:id', async (req, res) => {
   const id = req.params.id;
   const query = { _id: new ObjectId(id) }
   const result = await donationCollection.findOne(query)
+  res.send(result)
+})
+
+app.delete('/api/v1/user/donation-campaign-delete/:id', verifyToken, verifyAdmin, async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) }
+  const result = await donationCollection.deleteOne(query)
   res.send(result)
 })
 
@@ -233,21 +313,44 @@ app.patch('/api/v1/user/donation-campaign-update/:id', async (req, res) => {
 })
 
 //payment api
-// app.post("/api/v1/create-payment-intent", async (req, res) => {
-//   const { donation } = req.body;
-//   const amount = parseInt(donation * 100)
-//   console.log(amount, "amount inside the intent");
-//   const paymentIntent = await stripe.paymentIntents.create({
-//     amount: amount,
-//     currency: "usd",
-//     payment_method_types: [
-//       "card"
-//     ],
-//   })
-//   res.send({
-//     clientSecret: paymentIntent.client_secret
-//   })
-// })
+app.post("/api/v1/create-payment-intent", async (req, res) => {
+  const { donation } = req.body;
+  if (!donation) {
+    return
+  }
+  const amount = parseInt(donation * 100)
+  console.log(amount, "amount inside the intent");
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: "usd",
+    payment_method_types: [
+      "card"
+    ],
+  })
+  res.send({
+    clientSecret: paymentIntent.client_secret
+  })
+})
+
+
+//Post Payment:Method
+app.post('/api/v1/users/payments', async (req, res) => {
+  const payment = req.body;
+  const result = await paymentCollection.insertOne(payment)
+  console.log(result);
+  res.send(result)
+})
+
+app.get('/api/v1/users/payments', async (req, res) => {
+  const queryEmail = req.query.email
+  let query = {};
+  if (req.query?.email) {
+    query.ownerEmail = queryEmail
+  }
+  const result = await paymentCollection.find(query).toArray();
+  res.send(result)
+})
+
 
 app.listen(port, () => {
   console.log(`pet adoption server port: ${port}`);
