@@ -7,7 +7,7 @@ const port = process.env.PORT || 5000;
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
 //middleware
-app.use(cors())
+app.use(cors({}))
 app.use(express.json())
 
 app.get('/', (req, res) => {
@@ -106,6 +106,15 @@ app.get('/api/v1/users-info', verifyToken, verifyAdmin, async (req, res) => {
   res.send(result)
 })
 
+app.delete('/api/v1/users-info/:id', async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) }
+  const result = await userCollection.deleteOne(query)
+  res.send(result)
+})
+
+
+
 app.patch('/api/v1/users/admin/:id', async (req, res) => {
   const id = req.params.id;
   const filter = { _id: new ObjectId(id) }
@@ -149,6 +158,17 @@ app.get('/api/v1/user/pets', async (req, res) => {
     query.email = queryEmail
   }
   const result = await petCollection.find(query).toArray();
+  res.send(result)
+})
+
+app.get('/api/v1/users/pets', async (req, res) => {
+  const filter = req.query
+  const options = {
+    sort:{
+      dateAndTime: -1,
+    }
+  }
+  const result = await petCollection.find(filter, options).toArray();
   res.send(result)
 })
 
@@ -220,6 +240,14 @@ app.get('/api/v1/user/pet-adoption', async (req, res) => {
   res.send(result)
 })
 
+//delete Method: pet adoption request
+app.delete('/api/v1/user/pet-rejects/:id',async(req, res)=>{
+  const id = req.params.id;
+  const query = {_id: new ObjectId(id)}
+  const result = await userAdoptionCollection.deleteOne(query)
+  res.send(result)
+})
+
 //Post Method: User Pets add
 app.post('/api/v1/user/pet-create', async (req, res) => {
   const pet = req.body;
@@ -227,6 +255,8 @@ app.post('/api/v1/user/pet-create', async (req, res) => {
   console.log(result);
   res.send(result)
 })
+
+
 //patch Method: update pet
 app.patch('/api/v1/user/pet-update/:id', async (req, res) => {
   const item = req.body;
@@ -262,13 +292,6 @@ app.post('/api/v1/user/create-donation-campaign', async (req, res) => {
   res.send(result)
 })
 
-//Get Method: donation section
-// app.get('/api/v1/user/donation-section/:id', async(req, res)=>{
-//   const id = req.params.id;
-//   const query= {_id: new ObjectId(id)}
-//   const result = await donationCollection.find(query).toArray();
-//   res.send(result)
-// })
 
 app.get('/api/v1/user/donation-campaign', async (req, res) => {
   const queryEmail = req.query.email
@@ -337,6 +360,13 @@ app.post("/api/v1/create-payment-intent", async (req, res) => {
 app.post('/api/v1/users/payments', async (req, res) => {
   const payment = req.body;
   const result = await paymentCollection.insertOne(payment)
+  console.log(result);
+  res.send(result)
+})
+app.delete('/api/v1/users/payments-delete/:id', verifyToken, async (req, res) => {
+  const id = req.params.id;
+  const query = {_id: new ObjectId(id)}
+  const result = await paymentCollection.deleteOne(query)
   console.log(result);
   res.send(result)
 })
