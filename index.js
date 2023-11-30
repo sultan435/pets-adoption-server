@@ -77,7 +77,6 @@ const verifyAdmin = async (req, res, next) => {
   next()
 }
 
-
 //jwt
 app.post('/api/v1/jwt', async (req, res) => {
   const user = req.body;
@@ -85,7 +84,6 @@ app.post('/api/v1/jwt', async (req, res) => {
   // console.log(token);
   res.send({ token })
 })
-
 
 
 //Post method: user Information
@@ -142,58 +140,31 @@ app.get('/api/v1/user/admin/:email', verifyToken, async (req, res) => {
 })
 
 
-
-
 //GET Method: categories 
 app.get('/api/v1/pets-category', async (req, res) => {
   const result = await categoryCollection.find().toArray();
   res.send(result)
 })
 
-// Get Method: pet all
-app.get('/api/v1/user/pets', async (req, res) => {
-  const queryEmail = req.query.email
-  let query = {};
-  if (req.query?.email) {
-    query.email = queryEmail
-  }
-  const result = await petCollection.find(query).toArray();
-  res.send(result)
-})
 
 app.get('/api/v1/users/pets', async (req, res) => {
-  const filter = req.query
-  const options = {
-    sort:{
-      dateAndTime: -1,
+  const queryEmail = req.query.email
+  const queryCategory = req.query.category
+    let query = {};
+    if (queryEmail) {
+      query.email = queryEmail || ""
     }
-  }
-  const result = await petCollection.find(filter, options).toArray();
+    if(queryCategory){
+      query.category=queryCategory || ""
+    }
+    const options = {
+        sort:{
+          dateAndTime: -1,
+        }
+      }
+  const result = await petCollection.find(query,options).toArray();
   res.send(result)
 })
-
-//http://localhost:5000/api/v1/user/pets?category=Rabbit
-//http://localhost:5000/api/v1/user/pets?sortField=dateAndTime&sortOrder=desc
-
-// app.get('/api/v1/user/pets', async (req, res) => {
-//   let query = {};
-//   let sortObj= {}
-//   const queryCategory = req.query.category
-//   const sortField = req.query.sortField
-//   const sortOrder = req.query.sortOrder
-//   if (queryCategory) {
-//     query.category = queryCategory
-//   }
-
-//   if(sortField && sortOrder){
-//     sortObj[sortField] = sortOrder
-//   }
-//   // const cursor =  petCollection.find(query).sort({dateAndTime:"ase"});
-//   const cursor =  petCollection.find(query).sort(sortObj);
-//   const result = await cursor.toArray()
-//   res.send(result)
-// })
-
 
 
 //Delete Method: my pets
@@ -279,10 +250,6 @@ app.patch('/api/v1/user/pet-update/:id', async (req, res) => {
 })
 
 
-
-
-
-
 //Post Method: create donation campaign
 
 app.post('/api/v1/user/create-donation-campaign', async (req, res) => {
@@ -292,16 +259,21 @@ app.post('/api/v1/user/create-donation-campaign', async (req, res) => {
   res.send(result)
 })
 
-
 app.get('/api/v1/user/donation-campaign', async (req, res) => {
   const queryEmail = req.query.email
-  let query = {};
-  if (req.query?.email) {
-    query.ownerEmail = queryEmail
-  }
-  const result = await donationCollection.find(query).toArray();
+    let query = {};
+    if (queryEmail) {
+      query.ownerEmail = queryEmail || ""
+    }
+    const options = {
+        sort:{
+          dateAndTime: -1,
+        }
+      }
+  const result = await donationCollection.find(query,options).toArray();
   res.send(result)
 })
+
 
 app.get('/api/v1/user/donation-campaign-details/:id', async (req, res) => {
   const id = req.params.id;
@@ -354,7 +326,6 @@ app.post("/api/v1/create-payment-intent", async (req, res) => {
     clientSecret: paymentIntent.client_secret
   })
 })
-
 
 //Post Payment:Method
 app.post('/api/v1/users/payments', async (req, res) => {
