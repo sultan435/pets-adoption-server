@@ -18,7 +18,6 @@ app.get('/', (req, res) => {
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pdscwoz.mongodb.net/?retryWrites=true&w=majority`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -85,7 +84,6 @@ app.post('/api/v1/jwt', async (req, res) => {
   res.send({ token })
 })
 
-
 //Post method: user Information
 app.post('/api/v1/users-info', async (req, res) => {
   const users = req.body;
@@ -112,7 +110,6 @@ app.delete('/api/v1/users-info/:id', async (req, res) => {
 })
 
 
-
 app.patch('/api/v1/users/admin/:id', async (req, res) => {
   const id = req.params.id;
   const filter = { _id: new ObjectId(id) }
@@ -124,6 +121,7 @@ app.patch('/api/v1/users/admin/:id', async (req, res) => {
   const result = await userCollection.updateOne(filter, updateDoc)
   res.send(result)
 })
+
 
 app.get('/api/v1/user/admin/:email', verifyToken, async (req, res) => {
   const email = req.params.email;
